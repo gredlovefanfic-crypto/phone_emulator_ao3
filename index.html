@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AO3 聊天生成器_Gred</title>
+    <title>AO3 聊天生成器 Gred</title>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
         /* =========================================
            AO3 Work Skin CSS (标准样式)
@@ -15,16 +16,21 @@
         #workskin .skin-wechat .scrollable-content { background-color: #ededed; }
         #workskin .skin-wechat .bubble.mine { background-color: #95ec69; color: #000; border: 1px solid #8ad961; }
         #workskin .skin-wechat .bubble.other { background-color: #fff; color: #000; border: 1px solid #e0e0e0; }
+        
+        /* 微信标题居中 */
+        #workskin .header { padding: 0 15px; height: 50px; flex-shrink: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; position: relative; }
+        #workskin .skin-wechat .header-title { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
         #workskin .skin-qq { background-color: #f2f4f5; }
         #workskin .skin-qq .header { background-color: #fff; color: #000; border-bottom: 1px solid #eee; }
         #workskin .skin-qq .scrollable-content { background-color: #f2f4f5; }
         #workskin .skin-qq .bubble.mine { background-color: #cce9ff; color: #000; border: none; }
         #workskin .skin-qq .bubble.other { background-color: #fff; color: #000; border: none; }
-        #workskin .header { padding: 0 15px; height: 50px; flex-shrink: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; }
+        
         #workskin .header-left { display: flex; align-items: center; }
         #workskin .header-title { font-size: 17px; font-weight: bold; margin-right: 5px; }
         #workskin .status-icon { font-size: 14px; cursor: default; }
-        #workskin .header-menu { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #333; }
+        #workskin .header-menu { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #333; z-index: 11; }
         #workskin .header p { margin: 0; padding: 0; display: inline; }
         #workskin .scrollable-content { overflow-y: auto; padding: 15px 12px; flex-grow: 1; display: flex; flex-direction: column; }
         #workskin .msg-row { display: flex; align-items: flex-start; margin-bottom: 8px; flex-shrink: 0; }
@@ -55,6 +61,11 @@
         #workskin .rp-text { color: #fff; font-size: 16px; font-weight: 500; line-height: 1.2; }
         #workskin .rp-footer { background-color: rgba(255,255,255,0.05); border-top: 1px solid rgba(255,255,255,0.15); padding: 4px 15px; color: rgba(255,255,255,0.8); font-size: 11px; }
 
+        /* 时间/系统提示 */
+        #workskin .time-row { text-align: center; margin: 15px 0 10px 0; width: 100%; clear: both; display: flex; justify-content: center; }
+        #workskin .time-pill { background-color: rgba(0,0,0,0.15); color: #fff; font-size: 12px; padding: 3px 8px; border-radius: 4px; display: inline-block; max-width: 80%; }
+        #workskin .skin-wechat .time-pill { background-color: #dadddf; color: #787a7d; }
+
         /* =========================================
            编辑器 UI
            ========================================= */
@@ -74,13 +85,17 @@
         .btn-orange { background: #fd7e14; color: white; }
         .btn-purple { background: #6f42c1; color: white; }
         .btn-red-outline { background: #fff; border: 1px solid #dc3545; color: #dc3545; padding: 2px 8px; font-size: 12px; width: auto; margin:0;}
+        .btn-edit { background: #fff; border: 1px solid #007bff; color: #007bff; padding: 2px 5px; font-size: 12px; width: auto; margin:0; margin-right: 2px; }
 
-        /* 标签样式 */
         .tag { font-size: 10px; padding: 2px 4px; border-radius: 3px; margin-right: 5px; font-weight: bold; }
-        .tag-local { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; } /* 橙色-本地 */
-        .tag-link { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }   /* 绿色-外链 */
+        .tag-local { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .tag-link { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         
         .msg-list-item { background: #f9f9f9; border-bottom: 1px solid #eee; padding: 8px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .drag-handle { cursor: grab; color: #aaa; margin-right: 10px; font-size: 14px; padding: 0 5px; }
+        .drag-handle:active { cursor: grabbing; color: #666; }
+        .ghost-class { opacity: 0.5; background: #e0e0e0; }
+
         .char-list-item { background: #fff; border: 1px solid #eee; padding: 5px 8px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-radius: 4px; }
         .char-mini-av { width: 24px; height: 24px; border-radius: 3px; margin-right: 4px; vertical-align: middle; background: #ddd; object-fit: cover; }
 
@@ -92,14 +107,14 @@
 <body>
 
     <div class="sidebar">
-        <h3>AO3 聊天生成器 (V Pro)</h3>
+        <h3>AO3 聊天生成器 (换图增强版)</h3>
         
         <div class="panel-box">
             <div class="panel-title">1. 设置</div>
             <label>皮肤风格</label>
             <select id="themeSelect" onchange="renderAll()">
                 <option value="skin-qq">QQ (白顶/蓝泡泡)</option>
-                <option value="skin-wechat">微信 (灰顶/绿泡泡)</option>
+                <option value="skin-wechat">微信 (灰顶/绿泡泡/标题居中)</option>
             </select>
             
             <label>群名 / 标题</label>
@@ -148,6 +163,7 @@
                 <select id="senderSelect" style="flex:1"></select>
                 <select id="msgType" style="flex:1" onchange="toggleInput()">
                     <option value="text">文字</option>
+                    <option value="time">🕒 时间 / 系统提示</option>
                     <option value="redpacket">🧧 红包</option>
                     <option value="voice">语音+翻译</option>
                     <option value="image">图片</option>
@@ -155,6 +171,11 @@
             </div>
             
             <div id="input-text"><textarea id="textContent" placeholder="输入内容..."></textarea></div>
+            
+            <div id="input-time" style="display:none">
+                <input type="text" id="timeContent" placeholder="例如: 15:53 或 昨天 12:00">
+                <p style="font-size:11px; color:#666;">提示：发送后可按住 "☰" 拖动到任意位置。</p>
+            </div>
             
             <div id="input-redpacket" style="display:none">
                 <label>祝福语</label>
@@ -167,10 +188,19 @@
                 <input type="text" id="voiceDuration" placeholder="时长 (如 16&quot;)">
                 <textarea id="voiceText" placeholder="语音转文字内容..."></textarea>
             </div>
-            <div id="input-image" style="display:none"><input type="text" id="imgUrl" placeholder="图片 URL..."></div>
+
+            <div id="input-image" style="display:none">
+                <div class="row">
+                    <input type="text" id="imgUrl" placeholder="图片链接 / 上传后自动填入数据..." style="flex:2">
+                    <input type="file" id="msgImgUpload" accept="image/*" style="display:none" onchange="handleMsgImgSelect(this)">
+                    <button class="btn-blue" onclick="document.getElementById('msgImgUpload').click()" style="width: auto; padding: 0 10px; margin:0;">📂 上传本地</button>
+                </div>
+                <p style="font-size:11px; color:#666;">提示：本地上传会自动转换为 Base64 代码。</p>
+            </div>
             
-            <button class="btn-blue" onclick="sendMsg()">发送消息</button>
-            <div id="msgList" style="margin-top:10px; max-height: 150px; overflow-y:auto; border:1px solid #eee;"></div>
+            <button class="btn-blue" onclick="sendMsg()">发送 / 添加</button>
+            
+            <div id="msgList" style="margin-top:10px; max-height: 200px; overflow-y:auto; border:1px solid #eee;"></div>
             
             <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;">
                 <label>导出文件名</label>
@@ -221,11 +251,12 @@
         </div>
     </div>
 
+    <input type="file" id="changeCharAvatarInput" accept="image/*" style="display:none" onchange="handleChangeCharAvatarSelect(this)">
+    <input type="file" id="changeMsgImgInput" accept="image/*" style="display:none" onchange="handleChangeMsgImgSelect(this)">
+
     <script>
-        // 默认头像 (Base64)
         const DEFAULT_AVATAR = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAMAAABHPGVmAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAAZQTFRFzMzM////040qqAAAAAJ0Uk5T/wDltzBKAAAAJklEQVR42uzBgQAAAACAop/6QlVAAAAAAAAAAAAAAAAAAACwdQYMwAABnM7V7AAAAABJRU5ErkJggg==";
         
-        // AO3 CSS (用于导出 HTML 文件)
         const ao3Css = `
 #workskin .phone-container { width: 350px; height: 650px; margin: 0 auto; border: 1px solid #ddd; border-radius: 10px; overflow: hidden; font-family: sans-serif; position: relative; display: flex; flex-direction: column; background-color: #f5f5f5; }
 #workskin .skin-wechat { background-color: #ededed; }
@@ -238,11 +269,12 @@
 #workskin .skin-qq .scrollable-content { background-color: #f2f4f5; }
 #workskin .skin-qq .bubble.mine { background-color: #cce9ff; color: #000; border: none; }
 #workskin .skin-qq .bubble.other { background-color: #fff; color: #000; border: none; }
-#workskin .header { padding: 0 15px; height: 50px; flex-shrink: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; }
+#workskin .header { padding: 0 15px; height: 50px; flex-shrink: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; position: relative; }
+#workskin .skin-wechat .header-title { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #workskin .header-left { display: flex; align-items: center; }
 #workskin .header-title { font-size: 17px; font-weight: bold; margin-right: 5px; }
 #workskin .status-icon { font-size: 14px; cursor: default; }
-#workskin .header-menu { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #333; }
+#workskin .header-menu { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #333; z-index: 11; }
 #workskin .header p { margin: 0; padding: 0; display: inline; }
 #workskin .scrollable-content { overflow-y: auto; padding: 15px 12px; flex-grow: 1; display: flex; flex-direction: column; }
 #workskin .msg-row { display: flex; align-items: flex-start; margin-bottom: 8px; flex-shrink: 0; }
@@ -272,6 +304,9 @@
 #workskin .rp-icon::after { content: ""; width: 12px; height: 12px; background-color: #f8d757; border-radius: 50%; }
 #workskin .rp-text { color: #fff; font-size: 16px; font-weight: 500; line-height: 1.2; }
 #workskin .rp-footer { background-color: rgba(255,255,255,0.05); border-top: 1px solid rgba(255,255,255,0.15); padding: 4px 15px; color: rgba(255,255,255,0.8); font-size: 11px; }
+#workskin .time-row { text-align: center; margin: 15px 0 10px 0; width: 100%; clear: both; display: flex; justify-content: center; }
+#workskin .time-pill { background-color: rgba(0,0,0,0.15); color: #fff; font-size: 12px; padding: 3px 8px; border-radius: 4px; display: inline-block; max-width: 80%; }
+#workskin .skin-wechat .time-pill { background-color: #dadddf; color: #787a7d; }
 `;
 
         let characters = [
@@ -279,16 +314,34 @@
             { id: 2, name: "角色 B (我)", side: "right", avatar: DEFAULT_AVATAR, type: 'local' }
         ];
         let messages = [
-             { senderId: 1, type: 'text', content: 'V Pro 版：支持区分外链与本地图片。' }
+             { senderId: 1, type: 'text', content: '更新：现在可以在角色列表点击【🖼️ 换头像】修改已有角色的立绘了。' },
+             { senderId: 2, type: 'image', url: DEFAULT_AVATAR },
+             { senderId: 2, type: 'text', content: '👆 对于发错的图片，也可以在列表中点击【🖼️ 换源】进行替换，支持 URL 和本地文件。' }
         ];
+
+        // 用于跟踪当前正在编辑哪个角色或消息的图片
+        let targetCharIdForEdit = null;
+        let targetMsgIdxForEdit = null;
 
         window.onload = function() {
             renderCharSelect();
             renderCharListDisplay();
             renderAll();
+            
+            const el = document.getElementById('msgList');
+            new Sortable(el, {
+                animation: 150,
+                handle: '.drag-handle', 
+                ghostClass: 'ghost-class',
+                onEnd: function (evt) {
+                    const item = messages.splice(evt.oldIndex, 1)[0];
+                    messages.splice(evt.newIndex, 0, item);
+                    renderPreviewOnly(); 
+                    setTimeout(renderMsgList, 0); 
+                }
+            });
         };
 
-        // 检查输入框内容判断是外链还是本地（仅做提示）
         function checkAvatarType() {
             let val = document.getElementById('charAvatar').value;
             let tip = document.getElementById('avatarTip');
@@ -301,7 +354,7 @@
             }
         }
 
-        // 处理本地上传
+        // 1. 角色头像上传 (新增角色时)
         function handleFileSelect(input) {
             if (input.files && input.files[0]) {
                 var reader = new FileReader();
@@ -313,9 +366,57 @@
             }
         }
 
+        // 2. 聊天图片上传 (发送新消息时)
+        function handleMsgImgSelect(input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('imgUrl').value = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // 3. 🆕 替换已有角色的头像 (本地文件选择回调)
+        function handleChangeCharAvatarSelect(input) {
+            if (input.files && input.files[0] && targetCharIdForEdit !== null) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    let char = characters.find(c => c.id === targetCharIdForEdit);
+                    if(char) {
+                        char.avatar = e.target.result;
+                        char.type = 'local'; // 确认为本地类型
+                        renderCharListDisplay();
+                        renderAll();
+                    }
+                    targetCharIdForEdit = null; // 重置
+                    input.value = ''; // 清空 input 防止重复触发
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // 4. 🆕 替换已有消息的图片 (本地文件选择回调)
+        function handleChangeMsgImgSelect(input) {
+            if (input.files && input.files[0] && targetMsgIdxForEdit !== null) {
+                 var reader = new FileReader();
+                reader.onload = function (e) {
+                    if(messages[targetMsgIdxForEdit]) {
+                        messages[targetMsgIdxForEdit].url = e.target.result;
+                        renderMsgList();
+                        renderPreviewOnly();
+                    }
+                    targetMsgIdxForEdit = null; // 重置
+                    input.value = ''; // 清空 input
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+
         function toggleInput() {
             let t = document.getElementById('msgType').value;
-            ['text','voice','image','redpacket'].forEach(id => document.getElementById('input-'+id).style.display = 'none');
+            ['text','voice','image','redpacket','time'].forEach(id => document.getElementById('input-'+id).style.display = 'none');
             document.getElementById('input-'+t).style.display = 'block';
         }
 
@@ -325,8 +426,7 @@
             let side = document.getElementById('charSide').value;
             if(!name) return alert('请输入角色名字');
 
-            // 自动判断类型
-            let type = 'local'; // 默认本地
+            let type = 'local';
             if (avatar.startsWith('http')) type = 'link';
 
             characters.push({id: Date.now(), name, side, avatar, type});
@@ -337,10 +437,49 @@
             document.getElementById('avatarTip').innerText = "提示：请选择图片来源";
         }
 
+        // 编辑角色名字
+        function editCharName(id) {
+            let char = characters.find(c => c.id === id);
+            if (!char) return;
+            let newName = prompt("请输入新的角色名：", char.name);
+            if (newName !== null && newName.trim() !== "") {
+                char.name = newName.trim();
+                renderCharSelect();
+                renderCharListDisplay();
+                renderAll();
+            }
+        }
+
+        // 🆕 触发替换角色头像
+        function triggerCharAvatarEdit(id) {
+            let char = characters.find(c => c.id === id);
+            if (!char) return;
+            
+            // 优先询问 URL
+            let newUrl = prompt("请输入新的头像 URL (如果想选择本地文件，请留空并点击确定)：", char.avatar.startsWith('http') ? char.avatar : "");
+            
+            if (newUrl !== null) {
+                if (newUrl.trim() !== "") {
+                    // 用户输入了 URL
+                    char.avatar = newUrl.trim();
+                    char.type = 'link';
+                    renderCharListDisplay();
+                    renderAll();
+                } else {
+                    // 用户留空，触发本地文件选择
+                    targetCharIdForEdit = id;
+                    document.getElementById('changeCharAvatarInput').click();
+                }
+            }
+        }
+
+
         function deleteChar(id) {
+            if(!confirm("确定删除该角色吗？历史消息中该角色将显示为'未知'。")) return;
             characters = characters.filter(c => c.id !== id);
             renderCharSelect();
             renderCharListDisplay();
+            renderAll();
         }
 
         function renderCharListDisplay() {
@@ -349,11 +488,10 @@
             characters.forEach(c => {
                 let div = document.createElement('div');
                 div.className = 'char-list-item';
-                // 标签显示
                 let tag = c.type === 'link' 
                     ? `<span class="tag tag-link">[外链]</span>` 
                     : `<span class="tag tag-local">[本地]</span>`;
-                
+                // 增加了 换头像 按钮
                 div.innerHTML = `
                     <div style="display:flex; align-items:center;">
                         <img src="${c.avatar}" class="char-mini-av">
@@ -362,7 +500,11 @@
                             <div style="margin-top:2px;">${tag}</div>
                         </div>
                     </div>
-                    <button class="btn-red-outline" onclick="deleteChar(${c.id})">删</button>
+                    <div>
+                        <button class="btn-edit" onclick="editCharName(${c.id})">✏️ 改名</button>
+                        <button class="btn-edit" onclick="triggerCharAvatarEdit(${c.id})">🖼️ 换头像</button>
+                        <button class="btn-red-outline" onclick="deleteChar(${c.id})">删</button>
+                    </div>
                 `;
                 container.appendChild(div);
             });
@@ -370,19 +512,26 @@
 
         function renderCharSelect() {
             let s = document.getElementById('senderSelect');
+            let current = s.value;
             s.innerHTML = '';
             characters.forEach(c => s.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+            if(current) s.value = current;
         }
 
         function sendMsg() {
             let sid = document.getElementById('senderSelect').value;
-            if (!sid) return alert("请先添加角色");
             let type = document.getElementById('msgType').value;
-            let data = { senderId: parseInt(sid), type };
+            
+            if (type !== 'time' && !sid) return alert("请先添加角色");
+            
+            let data = { senderId: parseInt(sid || 0), type };
             
             if(type === 'text') {
                 data.content = document.getElementById('textContent').value;
                 document.getElementById('textContent').value = '';
+            } else if (type === 'time') {
+                data.content = document.getElementById('timeContent').value;
+                document.getElementById('timeContent').value = '';
             } else if (type === 'redpacket') {
                 data.main = document.getElementById('rpMain').value;
                 data.sub = document.getElementById('rpSub').value;
@@ -393,19 +542,85 @@
             } else if (type === 'image') {
                 data.url = document.getElementById('imgUrl').value;
                 document.getElementById('imgUrl').value = '';
+                document.getElementById('msgImgUpload').value = ''; 
             }
             if(!data.content && !data.text && !data.url && !data.main) return;
             messages.push(data);
             renderAll();
         }
 
-        function renderAll() {
-            let theme = document.getElementById('themeSelect').value;
-            let container = document.getElementById('previewContainer');
-            container.className = `phone-container ${theme}`;
+        // 🆕 触发替换消息图片
+        function triggerMsgImgEdit(idx) {
+            let msg = messages[idx];
+            if (!msg || msg.type !== 'image') return;
 
-            document.getElementById('dispTitle').innerText = document.getElementById('chatTitle').value;
+             // 优先询问 URL
+            let newUrl = prompt("请输入新的图片 URL (如果想选择本地文件，请留空并点击确定)：", msg.url.startsWith('http') ? msg.url : "");
             
+            if (newUrl !== null) {
+                if (newUrl.trim() !== "") {
+                     // 用户输入了 URL
+                    msg.url = newUrl.trim();
+                    renderMsgList();
+                    renderPreviewOnly();
+                } else {
+                    // 用户留空，触发本地文件选择
+                    targetMsgIdxForEdit = idx;
+                    document.getElementById('changeMsgImgInput').click();
+                }
+            }
+        }
+
+
+        function renderMsgList() {
+            let list = document.getElementById('msgList');
+            list.innerHTML = '';
+            messages.forEach((msg, idx) => {
+                let txt = '';
+                let charName = '';
+                let editBtn = ''; // 图片消息的额外编辑按钮
+
+                if (msg.type === 'time') {
+                    charName = "🕒 系统";
+                    txt = `[时间] ${msg.content}`;
+                } else {
+                    let char = characters.find(c => c.id === msg.senderId) || { name: "未知" };
+                    charName = char.name;
+                    txt = msg.type==='text' ? msg.content : (msg.type==='redpacket' ? '[红包]' : `[${msg.type}]`);
+                    if(msg.type === 'image') {
+                        txt = '[图片]';
+                        // 为图片消息添加换源按钮
+                        editBtn = `<button class="btn-edit" style="margin-right:5px;" onclick="triggerMsgImgEdit(${idx})">🖼️ 换源</button>`;
+                    }
+                }
+
+                list.innerHTML += `
+                <div class="msg-list-item" data-id="${idx}">
+                    <div style="display:flex; align-items:center; flex:1; overflow:hidden;">
+                        <span class="drag-handle">☰</span>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${charName}: ${txt}</span>
+                    </div>
+                    <div style="display:flex; align-items:center;">
+                        ${editBtn}
+                        <button style="color:red; width:auto; margin:0;" onclick="deleteMsg(${idx})">X</button>
+                    </div>
+                </div>`;
+            });
+        }
+
+        function deleteMsg(idx) {
+            messages.splice(idx, 1);
+            renderAll();
+        }
+
+        function renderPreviewOnly() {
+             let content = document.getElementById('chatContent');
+             content.innerHTML = '';
+             
+             let theme = document.getElementById('themeSelect').value;
+             document.getElementById('previewContainer').className = `phone-container ${theme}`;
+             document.getElementById('dispTitle').innerText = document.getElementById('chatTitle').value;
+
             let statusVal = document.getElementById('statusSelect').value;
             let customDiv = document.getElementById('customStatusDiv');
             if (statusVal === 'custom') {
@@ -416,12 +631,12 @@
             }
             document.getElementById('dispStatus').innerText = statusVal;
 
-            let content = document.getElementById('chatContent');
-            let list = document.getElementById('msgList');
-            content.innerHTML = '';
-            list.innerHTML = '';
+             messages.forEach((msg) => {
+                if (msg.type === 'time') {
+                    content.innerHTML += `<div class="time-row"><span class="time-pill">${msg.content}</span></div>`;
+                    return;
+                }
 
-            messages.forEach((msg, idx) => {
                 let char = characters.find(c => c.id === msg.senderId);
                 if (!char) char = { name: "未知", side: "left", avatar: DEFAULT_AVATAR, type: 'local' };
                 let inner = '';
@@ -447,19 +662,28 @@
                     </div>
                 `;
                 content.innerHTML += row;
-
-                let txt = msg.type==='text' ? msg.content : (msg.type==='redpacket' ? '[红包]' : `[${msg.type}]`);
-                list.innerHTML += `<div class="msg-list-item"><span>${char.name}: ${txt.substring(0,10)}</span><button style="color:red" onclick="messages.splice(${idx},1);renderAll()">X</button></div>`;
             });
             content.scrollTop = content.scrollHeight;
         }
 
-        // === 核心功能：生成 AO3 代码 (带检查) ===
+        function renderAll() {
+            renderPreviewOnly();
+            renderMsgList();
+        }
+
         function generateAO3Code() {
-            // 检查是否有本地图片混入
-            let hasLocal = characters.some(c => c.type === 'local' && messages.some(m => m.senderId === c.id));
-            if (hasLocal) {
-                let confirm = window.confirm("⚠️ 警告：检测到您使用了【本地图片/橙色标签】。\n\nAO3 不支持直接粘贴本地图片代码，发布后头像会变成空白。\n\n建议：\n1. 请使用图床外链 (绿色标签)。\n2. 或者使用【存为图片】功能直接发图。\n\n是否仍然要获取代码？");
+            let hasLocalAvatar = characters.some(c => c.type === 'local' && messages.some(m => m.senderId === c.id));
+            let hasLocalMsgImg = messages.some(m => m.type === 'image' && m.url && m.url.startsWith('data:image'));
+
+            if (hasLocalAvatar || hasLocalMsgImg) {
+                let msg = "⚠️ 警告：检测到您使用了【本地图片】(头像或聊天图)。\n\n";
+                msg += "AO3 不支持显示直接粘贴的本地代码 (Base64)。\n";
+                msg += "发布后图片会裂开或变成空白！\n\n";
+                msg += "✅ 建议：使用【🖼️ 存为图片】生成长图，直接发图即可。\n";
+                msg += "❌ 如果必须复制 HTML，请确保所有图片使用外链 (http...)。\n\n";
+                msg += "是否仍然要强制获取代码？";
+                
+                let confirm = window.confirm(msg);
                 if (!confirm) return;
             }
 
@@ -474,20 +698,16 @@
             document.getElementById('codeModal').style.display = 'flex';
         }
 
-        // === 核心功能：导出为 .html 文件 ===
         function downloadHTML() {
             let filename = document.getElementById('exportFilename').value || 'ao3_chat';
             if (!filename.endsWith('.html')) filename += '.html';
 
-            // 获取聊天部分的 HTML
             let chatHtml = document.getElementById('previewContainer').outerHTML;
-             // 清理 ID 以防冲突
             chatHtml = chatHtml.replace('id="previewContainer"', '')
                                .replace('id="dispTitle"', '')
                                .replace('id="dispStatus"', '')
                                .replace('id="chatContent"', '');
 
-            // 组装成一个完整的 HTML 文件
             let fullHtml = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -496,7 +716,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${filename}</title>
 <style>
-/* 嵌入 AO3 样式以便本地预览 */
 ${ao3Css}
 body { background-color: #eef2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
 #workskin { margin-top: 20px; margin-bottom: 20px; }
@@ -508,8 +727,6 @@ ${chatHtml}
 </div>
 </body>
 </html>`;
-
-            // 创建 Blob 并下载
             let blob = new Blob([fullHtml], {type: "text/html;charset=utf-8"});
             let url = URL.createObjectURL(blob);
             let a = document.createElement('a');
@@ -523,86 +740,84 @@ ${chatHtml}
 
         function importHTML() {
             const html = document.getElementById('importArea').value;
-            if(!html.includes('phone-container')) return alert("无效的代码");
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            // 恢复设置
-            const container = doc.querySelector('.phone-container');
-            if(container.classList.contains('skin-wechat')) document.getElementById('themeSelect').value = 'skin-wechat';
-            else document.getElementById('themeSelect').value = 'skin-qq';
+            if(!html) return alert("请输入代码");
 
-            const titleEl = doc.querySelector('.header-title');
-            if(titleEl) document.getElementById('chatTitle').value = titleEl.innerText.trim();
-
-            const statusEl = doc.querySelector('.status-icon');
-            if(statusEl) {
-                const sText = statusEl.innerText.trim();
-                const opts = document.getElementById('statusSelect').options;
-                let found = false;
-                for(let i=0; i<opts.length; i++) {
-                    if(opts[i].value === sText) {
-                        document.getElementById('statusSelect').value = sText;
-                        found = true;
-                        break;
-                    }
-                }
-                if(!found && sText) {
-                    document.getElementById('statusSelect').value = 'custom';
-                    document.getElementById('customStatusInput').value = sText;
-                }
-            }
-
-            // 重建数据
-            characters = [];
-            messages = [];
-            const rows = doc.querySelectorAll('.msg-row');
-            
-            rows.forEach(row => {
-                const isLeft = row.classList.contains('left');
-                const imgEl = row.querySelector('.avatar-box img');
-                const avatar = imgEl ? imgEl.src : DEFAULT_AVATAR;
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
                 
-                // 恢复角色 (自动判断类型)
-                let name = "未知";
-                const nameEl = row.querySelector('.char-name');
-                if(nameEl) name = nameEl.innerText.trim();
-                else if(!isLeft) name = "我";
-
-                let exists = characters.find(c => c.name === name && c.avatar === avatar);
-                let sid;
-                if(!exists) {
-                    sid = Date.now() + Math.floor(Math.random()*1000);
-                    // 简单判断导入的图片类型
-                    let type = avatar.startsWith('http') ? 'link' : 'local';
-                    characters.push({ id: sid, name, side: isLeft ? 'left' : 'right', avatar, type });
-                } else {
-                    sid = exists.id;
+                const container = doc.querySelector('.phone-container');
+                if(container) {
+                    if(container.classList.contains('skin-wechat')) document.getElementById('themeSelect').value = 'skin-wechat';
+                    else document.getElementById('themeSelect').value = 'skin-qq';
                 }
 
-                // 恢复消息
-                if(row.querySelector('.redpacket')) {
-                    const rpText = row.querySelector('.rp-text').innerText.trim();
-                    const rpFoot = row.querySelector('.rp-footer').innerText.trim();
-                    messages.push({ senderId: sid, type: 'redpacket', main: rpText, sub: rpFoot });
-                } else if(row.querySelector('.audio-bubble')) {
-                    const dur = row.querySelector('.duration-text').innerText.trim();
-                    const trans = row.querySelector('.transcribed-text').innerText.trim();
-                    messages.push({ senderId: sid, type: 'voice', duration: dur, text: trans });
-                } else if(row.querySelector('.bubble img')) {
-                    const src = row.querySelector('.bubble img').src;
-                    messages.push({ senderId: sid, type: 'image', url: src });
-                } else {
-                    const bubbleEl = row.querySelector('.bubble');
-                    const txt = bubbleEl ? bubbleEl.innerText.trim() : "";
-                    messages.push({ senderId: sid, type: 'text', content: txt });
-                }
-            });
+                const titleEl = doc.querySelector('.header-title');
+                if(titleEl) document.getElementById('chatTitle').value = titleEl.innerText.trim();
 
-            renderCharSelect();
-            renderCharListDisplay();
-            renderAll();
-            alert("导入成功！");
+                characters = [];
+                messages = [];
+                
+                const allRows = doc.querySelectorAll('.msg-row, .time-row');
+                
+                if (allRows.length === 0) {
+                    alert("未检测到有效的消息记录，请检查代码是否完整。");
+                    return;
+                }
+
+                allRows.forEach(row => {
+                    if (row.classList.contains('time-row')) {
+                        const timeText = row.innerText.trim();
+                        messages.push({ senderId: 0, type: 'time', content: timeText });
+                        return;
+                    }
+
+                    const isLeft = row.classList.contains('left');
+                    const imgEl = row.querySelector('.avatar-box img');
+                    const avatar = imgEl ? imgEl.src : DEFAULT_AVATAR;
+                    
+                    let name = "未知";
+                    const nameEl = row.querySelector('.char-name');
+                    if(nameEl) name = nameEl.innerText.trim();
+                    else if(!isLeft) name = "我";
+
+                    let exists = characters.find(c => c.name === name && c.avatar === avatar);
+                    let sid;
+                    if(!exists) {
+                        sid = Date.now() + Math.floor(Math.random()*10000);
+                        let type = avatar.startsWith('http') ? 'link' : 'local';
+                        characters.push({ id: sid, name, side: isLeft ? 'left' : 'right', avatar, type });
+                    } else {
+                        sid = exists.id;
+                    }
+
+                    if(row.querySelector('.redpacket')) {
+                        const rpText = row.querySelector('.rp-text').innerText.trim();
+                        const rpFoot = row.querySelector('.rp-footer').innerText.trim();
+                        messages.push({ senderId: sid, type: 'redpacket', main: rpText, sub: rpFoot });
+                    } else if(row.querySelector('.audio-bubble')) {
+                        const dur = row.querySelector('.duration-text').innerText.trim();
+                        const trans = row.querySelector('.transcribed-text').innerText.trim();
+                        messages.push({ senderId: sid, type: 'voice', duration: dur, text: trans });
+                    } else if(row.querySelector('.bubble img')) {
+                        const src = row.querySelector('.bubble img').src;
+                        messages.push({ senderId: sid, type: 'image', url: src });
+                    } else {
+                        const bubbleEl = row.querySelector('.bubble');
+                        const txt = bubbleEl ? bubbleEl.innerText.trim() : "";
+                        messages.push({ senderId: sid, type: 'text', content: txt });
+                    }
+                });
+
+                renderCharSelect();
+                renderCharListDisplay();
+                renderAll();
+                alert(`导入成功！恢复了 ${characters.length} 个角色和 ${messages.length} 条消息。`);
+
+            } catch (e) {
+                console.error(e);
+                alert("解析出错，请检查代码格式是否正确。\n\n错误信息：" + e.message);
+            }
         }
 
         function showCSS() {
@@ -621,7 +836,24 @@ ${chatHtml}
         function saveImage() {
             let filename = document.getElementById('exportFilename').value || 'chat_log';
             if (typeof html2canvas === 'undefined') return alert("插件未加载");
-            html2canvas(document.querySelector("#workskin"), { useCORS: true, scale: 2 }).then(canvas => {
+
+            let container = document.querySelector(".phone-container");
+            let content = document.querySelector(".scrollable-content");
+            
+            let originalHeight = container.style.height;
+            let originalOverflow = content.style.overflowY;
+
+            container.style.height = "auto"; 
+            content.style.overflowY = "visible";
+
+            html2canvas(document.querySelector("#workskin"), { 
+                useCORS: true, 
+                scale: 2,
+                windowHeight: document.querySelector("#workskin").scrollHeight 
+            }).then(canvas => {
+                container.style.height = originalHeight;
+                content.style.overflowY = originalOverflow;
+
                 let a = document.createElement('a');
                 a.download = filename + '.png';
                 a.href = canvas.toDataURL();
